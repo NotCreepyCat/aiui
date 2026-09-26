@@ -8,7 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 // set base to '/<repo>/'. Leave as '/' for a custom domain or a
 // username.github.io root repo.
 export default defineConfig({
-  base: '/',
+  base: '/aiui/',
   plugins: [
     react(),
     tailwindcss(),
@@ -24,10 +24,10 @@ export default defineConfig({
         background_color: '#fafcfe',
         theme_color: '#3772bb',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           {
-            src: '/icons/icon-maskable-512.png',
+            src: 'icons/icon-maskable-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
