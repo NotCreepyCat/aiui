@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -7,10 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#3772bb" />
     <meta name="description" content="Minimal local-first AI chat over OpenRouter — no backend, runs entirely in your browser." />
+    <!-- Google Translate rewrites text nodes directly in the DOM, which
+         conflicts with React's own reconciliation and throws "removeChild"
+         errors the moment React re-renders that subtree. Opt the whole app
+         out of auto-translation instead of fighting that after the fact. -->
+    <meta name="google" content="notranslate" />
     <title>AI UI</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root" translate="no"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

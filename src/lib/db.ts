@@ -122,5 +122,54 @@ export function chatDefaults(
 }
 
 export function activeVariant(message: ChatMessageRecord): MessageVariant | undefined {
-  return message.variants[message.activeVariantIndex]
+  const variants = message.variants ?? []
+  const index = message.activeVariantIndex ?? 0
+  return variants[index] ?? variants[0]
+}
+
+/**
+ * Backfills any field missing from a record written under an earlier schema
+ * version — this app has no versioned migrations, so an old chat/message
+ * created before a field existed simply lacks it in IndexedDB forever until
+ * something normalizes it. Applied wherever records are read, so every
+ * consumer always sees a complete shape regardless of how old the record is.
+ */
+export function normalizeSettings(settings: Settings | undefined): Settings {
+  return { ...makeDefaultSettings(), ...settings, id: 'global' }
+}
+
+export function normalizeChat(chat: Chat): Chat {
+  const defaults = chatDefaults()
+  return {
+    ...chat,
+    provider: chat.provider ?? null,
+    contextSize: chat.contextSize ?? defaults.contextSize,
+    maxTokens: chat.maxTokens ?? defaults.maxTokens,
+    temperature: chat.temperature ?? defaults.temperature,
+    reasoningEnabled: chat.reasoningEnabled ?? defaults.reasoningEnabled,
+    description: {
+      text: chat.description?.text ?? defaults.description.text,
+      role: chat.description?.role ?? defaults.description.role,
+    },
+    endOfPrompt: {
+      text: chat.endOfPrompt?.text ?? defaults.endOfPrompt.text,
+      role: chat.endOfPrompt?.role ?? defaults.endOfPrompt.role,
+    },
+  }
+}
+
+export function normalizeMessage(message: ChatMessageRecord): ChatMessageRecord {
+  const variants =
+    message.variants && message.variants.length > 0
+      ? message.variants.map((v) => ({
+          content: v.content ?? '',
+          reasoning: v.reasoning ?? null,
+          cost: v.cost ?? null,
+          promptTokens: v.promptTokens ?? null,
+          completionTokens: v.completionTokens ?? null,
+          createdAt: v.createdAt ?? Date.now(),
+        }))
+      : [{ content: '', reasoning: null, cost: null, promptTokens: null, completionTokens: null, createdAt: Date.now() }]
+  const activeVariantIndex = Math.min(Math.max(message.activeVariantIndex ?? 0, 0), variants.length - 1)
+  return { ...message, variants, activeVariantIndex }
 }

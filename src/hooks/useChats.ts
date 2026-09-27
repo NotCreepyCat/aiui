@@ -1,12 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { chatDefaults, db, newId, type Chat } from '@/lib/db'
+import { chatDefaults, db, newId, normalizeChat, type Chat } from '@/lib/db'
 
-export function useChats() {
-  return useLiveQuery(() => db.chats.orderBy('updatedAt').reverse().toArray(), []) ?? []
+export function useChats(): Chat[] {
+  const raw = useLiveQuery(() => db.chats.orderBy('updatedAt').reverse().toArray(), [])
+  return raw?.map(normalizeChat) ?? []
 }
 
 export function useChat(chatId: string | null) {
-  return useLiveQuery(() => (chatId ? db.chats.get(chatId) : undefined), [chatId])
+  const raw = useLiveQuery(() => (chatId ? db.chats.get(chatId) : undefined), [chatId])
+  return raw ? normalizeChat(raw) : raw
 }
 
 export async function createChat(

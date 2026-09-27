@@ -1,17 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, type ChatMessageRecord, type MessageVariant } from '@/lib/db'
+import { db, newId, normalizeMessage, type ChatMessageRecord, type MessageVariant } from '@/lib/db'
 import { extractSnippet, type SearchSnippet } from '@/lib/searchSnippet'
 
 export function useMessages(chatId: string | null): ChatMessageRecord[] {
-  return (
-    useLiveQuery<ChatMessageRecord[]>(
-      async () => {
-        if (!chatId) return []
-        return db.messages.where('chatId').equals(chatId).sortBy('order')
-      },
-      [chatId],
-    ) ?? []
+  const raw = useLiveQuery<ChatMessageRecord[]>(
+    async () => {
+      if (!chatId) return []
+      return db.messages.where('chatId').equals(chatId).sortBy('order')
+    },
+    [chatId],
   )
+  return raw?.map(normalizeMessage) ?? []
 }
 
 /**
@@ -31,8 +30,8 @@ export function useChatMessageMatches(query: string): Map<string, SearchSnippet>
         const matches = new Map<string, SearchSnippet>()
         for (const message of all) {
           if (matches.has(message.chatId)) continue
-          for (const variant of message.variants) {
-            const snippet = extractSnippet(variant.content, q)
+          for (const variant of message.variants ?? []) {
+            const snippet = extractSnippet(variant.content ?? '', q)
             if (snippet) {
               matches.set(message.chatId, snippet)
               break
@@ -98,16 +97,18 @@ export async function finalizeVariant(
     completionTokens: number | null
   },
 ) {
-  const record = await db.messages.get(messageId)
-  if (!record) return
+  const raw = await db.messages.get(messageId)
+  if (!raw) return
+  const record = normalizeMessage(raw)
   const variants = [...record.variants]
   variants[variantIndex] = { ...variants[variantIndex], ...result }
   await db.messages.put({ ...record, variants, activeVariantIndex: variantIndex })
 }
 
 export async function addVariantForRegenerate(messageId: string): Promise<number> {
-  const record = await db.messages.get(messageId)
-  if (!record) return 0
+  const raw = await db.messages.get(messageId)
+  if (!raw) return 0
+  const record = normalizeMessage(raw)
   const variants = [...record.variants, emptyVariant()]
   const activeVariantIndex = variants.length - 1
   await db.messages.put({ ...record, variants, activeVariantIndex })
@@ -120,8 +121,9 @@ export async function setActiveVariantIndex(messageId: string, index: number) {
 
 /** Editing (any message) branches into a new variant/swipe rather than overwriting the old one. */
 export async function addEditedVariant(messageId: string, content: string): Promise<number> {
-  const record = await db.messages.get(messageId)
-  if (!record) return 0
+  const raw = await db.messages.get(messageId)
+  if (!raw) return 0
+  const record = normalizeMessage(raw)
   const variants = [...record.variants, emptyVariant(content)]
   const activeVariantIndex = variants.length - 1
   await db.messages.put({ ...record, variants, activeVariantIndex })
