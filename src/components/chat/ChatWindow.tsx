@@ -37,8 +37,38 @@ export function ChatWindow() {
 
   const [liveText, setLiveText] = useState('')
   const liveTextRef = useRef('')
+  const liveTextFrameRef = useRef<number | null>(null)
   const [liveReasoning, setLiveReasoning] = useState('')
   const liveReasoningRef = useRef('')
+  const liveReasoningFrameRef = useRef<number | null>(null)
+
+  // Fast models can fire many delta chunks per frame — pushing a React state
+  // update on every single one is what caused the live preview to visibly
+  // scramble. Coalesce to at most one state update per animation frame.
+  function scheduleLiveTextUpdate() {
+    if (liveTextFrameRef.current != null) return
+    liveTextFrameRef.current = requestAnimationFrame(() => {
+      liveTextFrameRef.current = null
+      setLiveText(liveTextRef.current)
+    })
+  }
+  function scheduleLiveReasoningUpdate() {
+    if (liveReasoningFrameRef.current != null) return
+    liveReasoningFrameRef.current = requestAnimationFrame(() => {
+      liveReasoningFrameRef.current = null
+      setLiveReasoning(liveReasoningRef.current)
+    })
+  }
+  function cancelScheduledLiveUpdates() {
+    if (liveTextFrameRef.current != null) {
+      cancelAnimationFrame(liveTextFrameRef.current)
+      liveTextFrameRef.current = null
+    }
+    if (liveReasoningFrameRef.current != null) {
+      cancelAnimationFrame(liveReasoningFrameRef.current)
+      liveReasoningFrameRef.current = null
+    }
+  }
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [contextBannerDismissedFor, setContextBannerDismissedFor] = useState<string | null>(null)
@@ -74,6 +104,7 @@ export function ChatWindow() {
     const controller = new AbortController()
     setAbortController(controller)
     setStreamingMessageId(messageId)
+    cancelScheduledLiveUpdates()
     liveTextRef.current = ''
     setLiveText('')
     liveReasoningRef.current = ''
@@ -100,11 +131,11 @@ export function ChatWindow() {
         signal: controller.signal,
         onDelta: (_chunk, fullText) => {
           liveTextRef.current = fullText
-          setLiveText(fullText)
+          scheduleLiveTextUpdate()
         },
         onReasoningDelta: (fullReasoning) => {
           liveReasoningRef.current = fullReasoning
-          setLiveReasoning(fullReasoning)
+          scheduleLiveReasoningUpdate()
         },
       })
       await finalizeVariant(messageId, variantIndex, { ...result, reasoning: result.reasoning || null })
@@ -122,6 +153,7 @@ export function ChatWindow() {
         setErrors((e) => ({ ...e, [messageId]: message }))
       }
     } finally {
+      cancelScheduledLiveUpdates()
       setStreamingMessageId(null)
       setAbortController(null)
       liveTextRef.current = ''

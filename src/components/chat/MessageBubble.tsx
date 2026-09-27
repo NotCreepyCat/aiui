@@ -92,7 +92,15 @@ export function MessageBubble({
         ) : errorText ? (
           <span className="text-destructive">{errorText}</span>
         ) : content ? (
-          formatMessageText(content)
+          // While actively streaming, render the raw string — re-tokenizing
+          // into a dynamically-keyed node array on every single token and
+          // re-diffing it dozens of times a second is what let text land in
+          // the wrong spot. Once the message settles, format it properly.
+          isStreamingThis ? (
+            content
+          ) : (
+            formatMessageText(content)
+          )
         ) : isStreamingThis ? (
           <Loader2 className="size-4 animate-spin opacity-60" />
         ) : null}
