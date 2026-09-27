@@ -9,26 +9,41 @@ import {
 let modelsCache: OpenRouterModel[] | null = null
 let modelsInflight: Promise<OpenRouterModel[]> | null = null
 
+function loadModels(): Promise<OpenRouterModel[]> {
+  if (!modelsInflight) {
+    modelsInflight = fetchModels()
+      .then((m) => {
+        modelsCache = m
+        return m
+      })
+      .catch((e) => {
+        // Don't leave a permanently-rejected promise cached — otherwise one
+        // transient network hiccup breaks model loading for the whole
+        // session, since nothing would ever attempt the fetch again.
+        modelsInflight = null
+        throw e
+      })
+  }
+  return modelsInflight
+}
+
 export function useModels() {
   const [models, setModels] = useState<OpenRouterModel[] | null>(modelsCache)
   const [loading, setLoading] = useState(!modelsCache)
   const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     if (modelsCache) {
       setModels(modelsCache)
       setLoading(false)
+      setError(null)
       return
     }
     let cancelled = false
-    if (!modelsInflight) {
-      modelsInflight = fetchModels().then((m) => {
-        modelsCache = m
-        return m
-      })
-    }
     setLoading(true)
-    modelsInflight
+    setError(null)
+    loadModels()
       .then((m) => {
         if (!cancelled) setModels(m)
       })
@@ -41,9 +56,9 @@ export function useModels() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [retryKey])
 
-  return { models: models ?? [], loading, error }
+  return { models: models ?? [], loading, error, retry: () => setRetryKey((k) => k + 1) }
 }
 
 const endpointsCache = new Map<string, OpenRouterProviderEndpoint[]>()
@@ -54,15 +69,18 @@ export function useModelEndpoints(modelId: string | null) {
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     if (!modelId) {
       setEndpoints([])
+      setError(null)
       return
     }
     const cached = endpointsCache.get(modelId)
     if (cached) {
       setEndpoints(cached)
+      setError(null)
       return
     }
     let cancelled = false
@@ -82,7 +100,7 @@ export function useModelEndpoints(modelId: string | null) {
     return () => {
       cancelled = true
     }
-  }, [modelId])
+  }, [modelId, retryKey])
 
-  return { endpoints, loading, error }
+  return { endpoints, loading, error, retry: () => setRetryKey((k) => k + 1) }
 }

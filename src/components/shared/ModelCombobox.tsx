@@ -23,7 +23,7 @@ interface ModelComboboxProps {
 }
 
 export function ModelCombobox({ value, onChange, className }: ModelComboboxProps) {
-  const { models, loading, error } = useModels()
+  const { models, loading, error, retry } = useModels()
   const settings = useSettings()
   const [open, setOpen] = useState(false)
 
@@ -83,8 +83,19 @@ export function ModelCombobox({ value, onChange, className }: ModelComboboxProps
       <PopoverContent className="w-[--radix-popover-trigger-width] min-w-80 p-0" align="start">
         <Command>
           <CommandInput placeholder="Search models…" />
-          <CommandList>
-            <CommandEmpty>{error ? `Error: ${error}` : 'No models found.'}</CommandEmpty>
+          <CommandList className="max-h-[60vh]">
+            <CommandEmpty>
+              {error ? (
+                <div className="flex flex-col items-center gap-1.5">
+                  <span>Couldn't load models: {error}</span>
+                  <Button size="sm" variant="outline" onClick={retry}>
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                'No models found.'
+              )}
+            </CommandEmpty>
             {recentModels.length > 0 && (
               <>
                 <CommandGroup heading="Recent">{recentModels.map(renderItem)}</CommandGroup>
