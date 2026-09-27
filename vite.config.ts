@@ -14,6 +14,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered manually in main.tsx so we can force an update check
+      // whenever the app regains focus — installed PWAs on mobile often get
+      // resumed from a frozen background state rather than freshly
+      // navigated, so the default lifecycle can miss checking for updates.
+      injectRegister: false,
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'AI UI',
@@ -37,6 +42,9 @@ export default defineConfig({
       workbox: {
         // Only precache the app shell; OpenRouter requests always hit the network.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       },
     }),
   ],
